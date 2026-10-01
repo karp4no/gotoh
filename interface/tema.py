@@ -1,0 +1,30 @@
+# ============================================================
+# TEMA VISUAL DO GOTOH
+# ============================================================
+
+FUNDO = "#100A18"
+FUNDO_SECUNDARIO = "#160D24"
+FUNDO_CARD = "#24113D"
+FUNDO_CARD_HOVER = "#301854"
+
+ROXO = "#7C3AED"
+ROXO_CLARO = "#9333EA"
+ROXO_ESCURO = "#4C1D95"
+
+AZUL = "#3B82F6"
+
+TEXTO = "#F3F4F6"
+TEXTO_SECUNDARIO = "#A1A1AA"
+TEXTO_FRACO = "#71717A"
+
+BORDA = "#35204F"
+
+VERMELHO = "#EF4444"
+VERDE = "#22C55E"
+
+FONTE = "DejaVu Sans"
+
+TAMANHO_JANELA = "1100x700"
+MIN_LARGURA = 900
+MIN_ALTURA = 600
+LARGURA_MENU = 245
