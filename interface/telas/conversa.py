@@ -11,7 +11,13 @@ from interface.tema import (
     TEXTO,
     TEXTO_SECUNDARIO,
     BORDA,
-    FONTE
+    FONTE,
+    FUNDO_CONVERSA,
+    FUNDO_INPUT,
+    TEXTO_GOTOH,
+    TEXTO_USUARIO,
+    ROXO_SUAVE,
+    ROXO_ESCURO
 )
 
 from interface.componentes import limpar_conteudo
@@ -58,9 +64,7 @@ def mostrar(conteudo):
 
     area = tk.Frame(
         conteudo,
-        bg=FUNDO_CARD,
-        highlightbackground=BORDA,
-        highlightthickness=1
+        bg=FUNDO_CONVERSA
     )
 
     area.pack(
@@ -72,15 +76,16 @@ def mostrar(conteudo):
 
     conversa = tk.Text(
         area,
-        bg=FUNDO_CARD,
-        fg=TEXTO,
+        bg=FUNDO_CONVERSA,
+        fg=TEXTO_GOTOH,
         insertbackground=TEXTO,
         font=(FONTE, 11),
         wrap="word",
         relief="flat",
         bd=0,
-        padx=20,
-        pady=20,
+        highlightthickness=0,
+        padx=24,
+        pady=18,
         state="disabled"
     )
 
@@ -93,16 +98,19 @@ def mostrar(conteudo):
 
     conversa.tag_configure(
         "gotoh",
-        foreground=ROXO_CLARO,
-        spacing1=8,
-        spacing3=8
+        foreground=ROXO_SUAVE,
+        font=(FONTE, 10, "bold"),
+        spacing1=12,
+        spacing3=2,
+        justify="left"
     )
 
     conversa.tag_configure(
         "usuario",
-        foreground=TEXTO,
-        spacing1=8,
-        spacing3=8
+        foreground=TEXTO_USUARIO,
+        spacing1=12,
+        spacing3=2,
+        justify="right"
     )
 
     # ADICIONAR MENSAGEM
@@ -149,12 +157,13 @@ def mostrar(conteudo):
 
     entrada = tk.Entry(
         entrada_frame,
-        bg=FUNDO_SECUNDARIO,
-        fg=TEXTO,
+        bg=FUNDO_INPUT,
+        fg=TEXTO_GOTOH,
         insertbackground=TEXTO,
         font=(FONTE, 11),
         relief="flat",
-        bd=0
+        bd=0,
+        highlightthickness=0
     )
 
     entrada.pack(
@@ -194,13 +203,14 @@ def mostrar(conteudo):
         entrada_frame,
         text="Enviar",
         command=enviar,
-        bg=ROXO,
+        bg=ROXO_ESCURO,
         fg="white",
-        activebackground=ROXO_CLARO,
+        activebackground=ROXO,
         activeforeground="white",
         font=(FONTE, 10, "bold"),
         relief="flat",
         bd=0,
+        highlightthickness=0,
         cursor="hand2",
         padx=22,
         pady=10

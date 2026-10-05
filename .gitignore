@@ -1,3 +1,7 @@
 dados/memoria.json
 __pycache__/
 *.pyc
+
+material*/
+
+.venv/

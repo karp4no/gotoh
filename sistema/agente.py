@@ -4,6 +4,11 @@ from sistema.conhecimento import (
 )
 
 from sistema.roteador import consultar
+from sistema.documentos import obter_informacoes_pdf
+from sistema.estudo import preparar_estudo, buscar_no_material
+
+
+MATERIAL_ESTUDO_ATUAL = None
 
 from sistema.memoria import (
     adicionar_memoria,
@@ -27,11 +32,69 @@ def consultar_conhecimento(termo):
     return "Ainda não tenho informações sobre esse assunto no meu conhecimento local."
 
 
+def analisar_pdf(caminho):
+    global MATERIAL_ESTUDO_ATUAL
+
+    resultado = obter_informacoes_pdf(caminho)
+
+    if not resultado["sucesso"]:
+        return f"Não consegui abrir o PDF: {resultado["erro"]}"
+
+    estudo = preparar_estudo(resultado["texto"])
+
+    MATERIAL_ESTUDO_ATUAL = {
+        "arquivo": resultado["arquivo"],
+        "caminho": caminho,
+        "texto": resultado["texto"],
+    }
+
+    return (
+        f"Encontrei o PDF: {resultado["arquivo"]}\n\n"
+        f"Páginas: {resultado["paginas"]}\n"
+        f"Palavras extraídas: {estudo["estatisticas"]["palavras"]}\n\n"
+        "O material foi carregado temporariamente para estudo. "
+        "Ele ainda não foi salvo como conhecimento permanente."
+    )
+
+
+def consultar_material_atual(termo):
+    if not MATERIAL_ESTUDO_ATUAL:
+        return "Nenhum PDF foi carregado nesta sessão."
+
+    resultados = buscar_no_material(MATERIAL_ESTUDO_ATUAL["texto"], termo)
+
+    if not resultados:
+        return (
+            f"Não encontrei informações sobre {termo} "
+            "no PDF carregado."
+        )
+
+    resposta = (
+        f"Encontrei estas partes no PDF "
+        f"{MATERIAL_ESTUDO_ATUAL["arquivo"]}:\n\n"
+    )
+
+    for resultado in resultados[:5]:
+        resposta += f"{resultado["trecho"]}\n\n"
+
+    return resposta.strip()
+
+
 def processar_comando(texto):
     comando = normalizar(texto)
 
     if not comando:
         return "Não recebi nenhum comando."
+
+    if comando.startswith("analise o pdf ") or comando.startswith("analise esse pdf "):
+        partes = texto.split(" ", 3)
+
+        if len(partes) == 4:
+            caminho = partes[3].strip()
+            return analisar_pdf(caminho)
+
+        return "Use assim: analise o PDF /caminho/do/arquivo.pdf"
+
 
 
     # MEMÓRIA
@@ -175,6 +238,21 @@ def processar_comando(texto):
             resposta += f"{i}. {nota['texto']}\n"
 
         return resposta.strip()
+
+
+    if comando.startswith("o que essa aula fala sobre "):
+        termo = texto[len("o que essa aula fala sobre "):].strip()
+        return consultar_material_atual(termo)
+
+
+    if comando.startswith("o que esse pdf fala sobre "):
+        termo = texto[len("o que esse pdf fala sobre "):].strip()
+        return consultar_material_atual(termo)
+
+
+    if comando.startswith("procure no pdf "):
+        termo = texto[len("procure no pdf "):].strip()
+        return consultar_material_atual(termo)
 
 
     # CONHECIMENTO
