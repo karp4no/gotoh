@@ -1,313 +1,137 @@
-from sistema.conhecimento import (
-    buscar_conhecimento,
-    resumir_resultados,
-)
-
-from sistema.roteador import consultar
-from sistema.documentos import obter_informacoes_pdf
-from sistema.estudo import preparar_estudo, buscar_no_material
-
-
-MATERIAL_ESTUDO_ATUAL = None
-
-from sistema.memoria import (
-    adicionar_memoria,
-    buscar_memorias,
-    listar_memorias,
-    adicionar_tarefa,
-    listar_tarefas,
-    adicionar_nota,
-    listar_notas,
-)
-
-
-def normalizar(texto):
-    return texto.strip().lower()
-
-
-def consultar_conhecimento(termo):
-    resultado = consultar(termo)
-    if resultado["encontrou"]:
-        return resultado["resposta"]
-    return "Ainda não tenho informações sobre esse assunto no meu conhecimento local."
-
-
-def analisar_pdf(caminho):
-    global MATERIAL_ESTUDO_ATUAL
-
-    resultado = obter_informacoes_pdf(caminho)
-
-    if not resultado["sucesso"]:
-        return f"Não consegui abrir o PDF: {resultado["erro"]}"
-
-    estudo = preparar_estudo(resultado["texto"])
-
-    MATERIAL_ESTUDO_ATUAL = {
-        "arquivo": resultado["arquivo"],
-        "caminho": caminho,
-        "texto": resultado["texto"],
-    }
-
-    return (
-        f"Encontrei o PDF: {resultado["arquivo"]}\n\n"
-        f"Páginas: {resultado["paginas"]}\n"
-        f"Palavras extraídas: {estudo["estatisticas"]["palavras"]}\n\n"
-        "O material foi carregado temporariamente para estudo. "
-        "Ele ainda não foi salvo como conhecimento permanente."
-    )
-
-
-def consultar_material_atual(termo):
-    if not MATERIAL_ESTUDO_ATUAL:
-        return "Nenhum PDF foi carregado nesta sessão."
-
-    resultados = buscar_no_material(MATERIAL_ESTUDO_ATUAL["texto"], termo)
-
-    if not resultados:
-        return (
-            f"Não encontrei informações sobre {termo} "
-            "no PDF carregado."
-        )
-
-    resposta = (
-        f"Encontrei estas partes no PDF "
-        f"{MATERIAL_ESTUDO_ATUAL["arquivo"]}:\n\n"
-    )
-
-    for resultado in resultados[:5]:
-        resposta += f"{resultado["trecho"]}\n\n"
-
-    return resposta.strip()
-
-
-def processar_comando(texto):
-    comando = normalizar(texto)
-
-    if not comando:
-        return "Não recebi nenhum comando."
-
-    if comando.startswith("analise o pdf ") or comando.startswith("analise esse pdf "):
-        partes = texto.split(" ", 3)
-
-        if len(partes) == 4:
-            caminho = partes[3].strip()
-            return analisar_pdf(caminho)
-
-        return "Use assim: analise o PDF /caminho/do/arquivo.pdf"
-
-
-
-    # MEMÓRIA
-
-    if comando.startswith("lembra que "):
-        conteudo = texto[len("lembra que "):].strip()
-
-        if adicionar_memoria(conteudo):
-            return f"Entendi. Vou lembrar disso: {conteudo}"
-
-        return "Não consegui salvar essa memória."
-
-
-    if comando.startswith("lembre que "):
-        conteudo = texto[len("lembre que "):].strip()
-
-        if adicionar_memoria(conteudo):
-            return f"Entendi. Vou lembrar disso: {conteudo}"
-
-        return "Não consegui salvar essa memória."
-
-
-    if comando.startswith("guarda que "):
-        conteudo = texto[len("guarda que "):].strip()
-
-        if adicionar_memoria(conteudo):
-            return f"Certo. Guardei isso: {conteudo}"
-
-        return "Não consegui salvar essa memória."
-
-
-    if comando.startswith("guardar que "):
-        conteudo = texto[len("guardar que "):].strip()
-
-        if adicionar_memoria(conteudo):
-            return f"Certo. Guardei isso: {conteudo}"
-
-        return "Não consegui salvar essa memória."
-
-
-    if comando.startswith("o que você lembra"):
-        partes = texto.split("sobre", 1)
-
-        if len(partes) == 2:
-            termo = partes[1].strip()
-            resultados = buscar_memorias(termo)
-
-            if not resultados:
-                return f"Não encontrei nenhuma memória sobre {termo}."
-
-            resposta = "Encontrei estas memórias:\n"
-
-            for memoria in resultados:
-                resposta += f"- {memoria['texto']}\n"
-
-            return resposta.strip()
-
-        memorias = listar_memorias()
-
-        if not memorias:
-            return "Ainda não tenho memórias registradas."
-
-        resposta = "Estas são algumas coisas que lembro:\n"
-
-        for memoria in memorias:
-            resposta += f"- {memoria['texto']}\n"
-
-        return resposta.strip()
-
-
-    # TAREFAS
-
-    if comando.startswith("cria uma tarefa"):
-        partes = texto.split(":", 1)
-
-        if len(partes) == 2:
-            tarefa = partes[1].strip()
-
-            if adicionar_tarefa(tarefa):
-                return f"Tarefa criada: {tarefa}"
-
-        return "Use assim: cria uma tarefa: estudar Python."
-
-
-    if comando.startswith("adiciona uma tarefa"):
-        partes = texto.split(":", 1)
-
-        if len(partes) == 2:
-            tarefa = partes[1].strip()
-
-            if adicionar_tarefa(tarefa):
-                return f"Tarefa criada: {tarefa}"
-
-        return "Use assim: adiciona uma tarefa: estudar Python."
-
-
-    if comando.startswith("mostra minhas tarefas"):
-        tarefas = listar_tarefas()
-
-        if not tarefas:
-            return "Você não tem tarefas cadastradas."
-
-        resposta = "Suas tarefas:\n"
-
-        for i, tarefa in enumerate(tarefas, start=1):
-            status = "✓" if tarefa.get("concluida") else "○"
-            resposta += f"{i}. {status} {tarefa['texto']}\n"
-
-        return resposta.strip()
-
-
-    # NOTAS
-
-    if comando.startswith("anota que "):
-        nota = texto[len("anota que "):].strip()
-
-        if adicionar_nota(nota):
-            return f"Anotado: {nota}"
-
-        return "Não consegui salvar a nota."
-
-
-    if comando.startswith("anota "):
-        nota = texto[len("anota "):].strip()
-
-        if adicionar_nota(nota):
-            return f"Anotado: {nota}"
-
-        return "Não consegui salvar a nota."
-
-
-    if comando.startswith("mostra minhas notas"):
-        notas = listar_notas()
-
-        if not notas:
-            return "Você não tem notas cadastradas."
-
-        resposta = "Suas notas:\n"
-
-        for i, nota in enumerate(notas, start=1):
-            resposta += f"{i}. {nota['texto']}\n"
-
-        return resposta.strip()
-
-
-    if comando.startswith("o que essa aula fala sobre "):
-        termo = texto[len("o que essa aula fala sobre "):].strip()
-        return consultar_material_atual(termo)
-
-
-    if comando.startswith("o que esse pdf fala sobre "):
-        termo = texto[len("o que esse pdf fala sobre "):].strip()
-        return consultar_material_atual(termo)
-
-
-    if comando.startswith("procure no pdf "):
-        termo = texto[len("procure no pdf "):].strip()
-        return consultar_material_atual(termo)
-
-
-    # CONHECIMENTO
-
-    if comando.startswith("o que é "):
-        termo = texto[8:].strip()
-
-        return consultar_conhecimento(termo)
-
-
-    if comando.startswith("o que e "):
-        termo = texto[8:].strip()
-
-        return consultar_conhecimento(termo)
-
-
-    if comando.startswith("explique "):
-        termo = texto[9:].strip()
-
-        return consultar_conhecimento(termo)
-
-
-    if comando.startswith("me explica "):
-        termo = texto[11:].strip()
-
-        return consultar_conhecimento(termo)
-
-
-    # COMANDOS BÁSICOS
-
-    if comando in ["oi", "olá", "ola", "e aí", "e ai"]:
-        return "Olá! Sou o Gotoh. O que vamos fazer?"
-
-
-    if comando in ["quem é você", "quem e voce", "quem é voce"]:
-        return (
-            "Eu sou o Gotoh, seu agente pessoal. "
-            "Posso guardar informações, organizar tarefas, "
-            "consultar seu conhecimento e, futuramente, pesquisar na web."
-        )
-
-
-    if comando in ["ajuda", "help"]:
-        return (
-            "Você pode me dizer coisas como:\n"
-            "- lembra que eu quero estudar IA\n"
-            "- cria uma tarefa: estudar Python\n"
-            "- anota que preciso revisar SQL\n"
-            "- mostra minhas tarefas\n"
-            "- mostra minhas notas\n"
-            "- o que você lembra sobre IA"
-        )
-
-
-    return (
-        "Ainda não sei executar esse comando.\n"
-        "Tente escrever 'ajuda' para ver o que já consigo fazer."
-    )
+import re
+import json
+import urllib.parse
+import urllib.request
+import sqlite3
+from memory_manager import GotohMemory
+
+def montar_contexto_sistema():
+    fatos_dict = {}
+    try:
+        conn = sqlite3.connect('gotoh_memory.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT chave, valor FROM fatos_usuario")
+        for k, v in cursor.fetchall():
+            fatos_dict[str(k).strip().lower()] = str(v).strip()
+        conn.close()
+    except Exception:
+        pass
+    return fatos_dict
+
+def buscar_wikipedia_search(termo):
+    try:
+        url_search = f"https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch={urllib.parse.quote(termo)}&format=json"
+        req = urllib.request.Request(url_search, headers={'User-Agent': 'GotohBot/1.0'})
+        
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+            search_results = data.get('query', {}).get('search', [])
+            
+        if not search_results:
+            return None
+
+        resumos = []
+        for item in search_results[:2]:
+            titulo = item.get('title', '')
+            snippet = item.get('snippet', '')
+            snippet_limpo = re.sub(r'<[^>]+>', '', snippet)
+            resumos.append(f"• **{titulo}**: {snippet_limpo}...")
+
+        return "\n".join(resumos)
+    except Exception:
+        return None
+
+def pesquisar_web_autonomo(termo_bruto):
+    termo = termo_bruto.lower()
+    expressoes = [
+        "fala goto", "goto", "gotoh", "me diz", "me fala", "pesquise sobre",
+        "o que voce sabe sobre", "o que você sabe sobre", "qual o", "qual é o",
+        "qual", "quais", "me diga", "que foi", "em qual", "meu", "minha"
+    ]
+    for expr in expressoes:
+        termo = termo.replace(expr, "")
+    termo = termo.strip()
+
+    if not termo or len(termo) < 3:
+        return None
+
+    resultado = buscar_wikipedia_search(termo)
+    if resultado:
+        return f"Resultados da pesquisa para '{termo}':\n{resultado}"
+
+    return f"Não encontrei resultados claros na web para '{termo}'."
+
+def responder_trecho(trecho, fatos):
+    texto_lc = trecho.lower()
+
+    # 1. Checagem de Memória - Idade
+    if "idade" in texto_lc or "quantos anos" in texto_lc:
+        idade = fatos.get("idade")
+        if idade:
+            return f"Você tem {idade}."
+        return "Sua idade ainda não está registrada na memória."
+
+    # 2. Checagem de Memória - Faculdade / Curso / Estudo
+    if any(p in texto_lc for p in ["faculdade", "curso", "estudo", "estuda", "universidade"]):
+        curso = fatos.get("curso", fatos.get("formacao_atual", "Ciência da Computação"))
+        faculdade = fatos.get("faculdade", fatos.get("universidade", "Cruzeiro do Sul"))
+        return f"Você estuda {curso} na instituição {faculdade}."
+
+    # 3. Checagem de Memória - Objetivo
+    if "objetivo" in texto_lc and ("voce" in texto_lc or "seu" in texto_lc or "gotoh" in texto_lc):
+        obj = fatos.get("objetivo_gotoh", fatos.get("objetivo", "Ser um assistente de IA pessoal autônomo"))
+        return f"O objetivo principal é: {obj}."
+
+    # 4. Trava de Perfil Pessoal ("minha", "meu")
+    if any(pronome in texto_lc.split() for pronome in ["minha", "meu", "meus", "minhas"]):
+        if "mãe" in texto_lc or "mae" in texto_lc:
+            mae = fatos.get("nome_mae") or fatos.get("mae")
+            if mae:
+                return f"O nome da sua mãe é: {mae}."
+            return "Essa informação sobre sua mãe ainda não está registrada na minha memória."
+
+        if "pai" in texto_lc:
+            pai = fatos.get("nome_pai") or fatos.get("pai")
+            if pai:
+                return f"O nome do seu pai é: {pai}."
+            return "Essa informação sobre seu pai ainda não está registrada na minha memória."
+
+        palavras_frase = set(re.findall(r'\w+', texto_lc))
+        for chave, valor in fatos.items():
+            if chave in palavras_frase:
+                return f"Conforme registrado em sua memória, seu/sua {chave} é: {valor}."
+
+        return "Essa informação sobre você ainda não está registrada na minha memória."
+
+    # 5. Busca Web Autônoma
+    web_res = pesquisar_web_autonomo(trecho)
+    if web_res:
+        return web_res
+    
+    return f"Não encontrei registros na memória nem na web sobre '{trecho}'."
+
+def processar_comando(texto_usuario):
+    db = GotohMemory()
+    db.salvar_mensagem("usuario", texto_usuario)
+    fatos = montar_contexto_sistema()
+
+    texto_lc = texto_usuario.lower()
+    
+    if any(pronome in texto_lc.split() for pronome in ["minha", "meu", "meus", "minhas"]) or \
+       any(p in texto_lc for p in ["faculdade", "curso", "estudo", "idade", "quantos anos"]):
+        resposta_direta = responder_trecho(texto_usuario, fatos)
+        db.salvar_mensagem("gotoh", resposta_direta)
+        return resposta_direta
+
+    sub_perguntas = re.split(r';|,\s*e\s+|,', texto_usuario, flags=re.IGNORECASE)
+
+    respostas = []
+    for parte in sub_perguntas:
+        parte_limpa = parte.strip()
+        if parte_limpa:
+            resp = responder_trecho(parte_limpa, fatos)
+            respostas.append(resp)
+
+    resposta_final = "\n\n".join(respostas)
+    db.salvar_mensagem("gotoh", resposta_final)
+    return resposta_final
